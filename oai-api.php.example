@@ -1,0 +1,5 @@
+<?php
+// oai-api.php OpenAi API Key
+return [
+    'api_key' => 'sk-proj-yourOpenAiKey'
+];

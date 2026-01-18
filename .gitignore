@@ -1,0 +1,9 @@
+# Config & secrets
+llms-config.php
+/private/
+*.log
+.env
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,37 @@
+<?php
+// llms-config.php — Configuration for php-llmscan (https://github.com/enterrahost/php-llmscan)
+// Generates llmstxt.org compliant documentation from any sitemap using standard PHP.
+
+return [
+    // Input
+    'sitemap_url'       => 'https://example.com/sitemap.xml', // Change this
+
+    // API keys (only one used based on ai_engine)
+    'deepseek_api_key_file'     => '/path/to/ds-api.php',   // returns ['api_key' => '...'] Sample ds-api.php supplied 
+    'openai_api_key_file'       => '/path/to/oai-api.php', // returns ['api_key' => '...'] Sample oai-api.php supplied 
+
+    // AI engine: 'deepseek' or 'openai'
+    'ai_engine'         => 'openai',
+
+    // Output paths
+    'web_root'          => '/var/www/example.com',        // where llms.txt goes
+    'llms_output_dir'   => '/var/www/example.com/llms',   // where .html.md files go
+
+    // Metadata
+    'project_name'      => 'Example Project',             // shown in llms.txt header
+    'project_summary'   => 'A brief neutral summary of what this site offers.',
+    // The base URL of your website (used for absolute links in llms.txt)
+    'site_url'          => 'https://example.com',
+    
+    // Use absolute URLs in llms.txt? (true = https://..., false = /path/...)
+    'use_absolute_urls' => true,
+
+    // HTTP
+     'user_agent'       => 'php-llmscan Doc-Generator/1.0 (+https://github.com/enterrahost/php-llmscan)',
+     
+    // Logging mode: 'console', 'file', 'both', or 'none'
+    'log_mode'          => 'none',
+
+    // Logging
+    'log_file'          => '/var/log/llm-docs-generator.log',
+];
