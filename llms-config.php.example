@@ -25,9 +25,17 @@ return [
     
     // Use absolute URLs in llms.txt? (true = https://..., false = /path/...)
     'use_absolute_urls' => true,
+    
+    // Regenerate only if .html.md is older than 90 days; 
+    // It is likely that your content is not changed often so there is no reason to generate new .html.md files weekly or even monthly, this also saves AI Tokens
+    'regenerate_after_days' => 90, 
+    
+    // Set to false to disable .not_technical.html.md files by setting this to true we do not analyze a url that has already been analyzed and marked as "Not Technical" 
+    // If you want the file reprocessed to you delete the relavive .not_technical.html.md file
+    'skip_non_technical_cache' => true, 
 
     // HTTP
-     'user_agent'       => 'php-llmscan Doc-Generator/1.0 (+https://github.com/enterrahost/php-llmscan)',
+    'user_agent'        => 'php-llmscan Doc-Generator/1.0 (+https://github.com/enterrahost/php-llmscan)',
      
     // Logging mode: 'console', 'file', 'both', or 'none'
     'log_mode'          => 'none',

@@ -41,6 +41,8 @@ Rename `llms-config.php.example` to `llms-config.php` and customize the values b
 | `project_summary` | string | A one-sentence factual summary of what your site provides. Avoid marketing language. |
 | `site_url` | string | The base URL of your website (e.g., `https://example.com`). Used to construct links in `llms.txt`. |
 | `use_absolute_urls` | bool | If `true`, `llms.txt` uses full URLs (e.g., `https://example.com/llms/page.html.md`). If `false`, it uses relative paths (e.g., `/llms/page.html.md`). |
+| `regenerate_after_days` | string | Numrical value in days - Default is 90 |
+| `skip_non_technical_cache` | bool |  If `true` non technical files marked as .not_technical.html.md will not be reprocessed - Default is True |
 
 ### HTTP & Logging
 | Key | Type | Description |

@@ -54,6 +54,10 @@ foreach ([$outputDir, dirname($logFile)] as $dir) {
 $apiKey = loadApiKey($config);
 if (!$apiKey) exit(1);
 
+// Freshness control: skip regenerating .html.md files newer than X days
+$regenAfterDays = isset($config['regenerate_after_days']) ? (int)$config['regenerate_after_days'] : 0;
+$skipRegen = ($regenAfterDays > 0);
+
 // Trim config values to prevent hidden whitespace issues
 $sitemapUrl = trim($config['sitemap_url']);
 $userAgent  = trim($config['user_agent']);
@@ -80,11 +84,50 @@ if (preg_match_all('#<loc>\s*(https?://[^\s<]+)\s*</loc>#i', $xml, $matches)) {
 }
 
 // Process each URL
+// Process each URL
 $pageMetadata = []; // [slug => description]
 
 foreach ($urls as $url) {
     logMessage("Evaluating: $url");
 
+    // Generate slug early to check existing file
+    $path = parse_url($url, PHP_URL_PATH);
+    $slug = trim($path, '/');
+    if (empty($slug)) $slug = 'index';
+    $slug = preg_replace('/[^a-z0-9\-_\.]/i', '-', $slug);
+    $slug = preg_replace('/-+/', '-', $slug);
+    $slug = trim($slug, '-');
+
+    $filepath = "$outputDir/{$slug}.html.md";
+
+    $techFileExists = file_exists($filepath);
+    $notTechFile = "$outputDir/{$slug}.not_technical.html.md";
+    $notTechFileExists = file_exists($notTechFile);
+    
+    if ($skipRegen && ($techFileExists || $notTechFileExists)) {
+        // Determine which file to check age against
+        $existingFile = $techFileExists ? $filepath : $notTechFile;
+        $fileAge = time() - filemtime($existingFile);
+        $maxAgeSeconds = $regenAfterDays * 24 * 60 * 60;
+    
+        if ($fileAge < $maxAgeSeconds) {
+            if ($techFileExists) {
+                logMessage("Skipping (fresh technical file): {$slug}.html.md (age: " . round($fileAge / 3600, 1) . "h)");
+                $pageMetadata[$slug] = 'Technical documentation page (cached).';
+            } else {
+                logMessage("Skipping (recently marked non-technical): {$slug}.not_technical.html.md (age: " . round($fileAge / 3600, 1) . "h)");
+                // Do NOT add to $pageMetadata — it's not documentation
+            }
+            continue;
+        } else {
+            logMessage("Cached decision outdated (age: " . round($fileAge / 86400, 1) . "d), re-evaluating: $url");
+            // Optional: clean up old marker files (not required)
+            if ($techFileExists) unlink($filepath);
+            if ($notTechFileExists) unlink($notTechFile);
+        }
+    }
+
+    // Fetch and process page content
     $html = fetchUrl($url, $userAgent);
     if (!$html) {
         logMessage("Skipping (fetch failed): $url");
@@ -119,10 +162,20 @@ $cleanHtml
 PROMPT;
 
     $isRelevant = callAI($config['ai_engine'], $apiKey, $relevancePrompt, 10);
-    if (trim(strtoupper($isRelevant)) !== 'YES') {
-        logMessage("Skipping (not technical): $url");
-        continue;
-    }
+        if (trim(strtoupper($isRelevant)) !== 'YES') {
+            logMessage("Page marked as non-technical: $url");
+        
+            // Optionally cache the decision
+            $skipNonTechCache = $config['skip_non_technical_cache'] ?? true;
+            if ($skipNonTechCache) {
+                $notTechFile = "$outputDir/{$slug}.not_technical.html.md";
+                // Create empty file as a marker
+                file_put_contents($notTechFile, '');
+                logMessage("Created marker: {$slug}.not_technical.html.md");
+            }
+        
+            continue;
+        }
 
     // STEP 2: Generate clean Markdown
     $markdownPrompt = <<<PROMPT
@@ -169,16 +222,7 @@ PROMPT;
     $description = callAI($config['ai_engine'], $apiKey, $descPrompt, 60, 0.3);
     $description = trim(preg_replace('/[\r\n].*/', '', $description)); // first sentence only
 
-    // Generate slug
-    $path = parse_url($url, PHP_URL_PATH);
-    $slug = trim($path, '/');
-    if (empty($slug)) $slug = 'index';
-    $slug = preg_replace('/[^a-z0-9\-_\.]/i', '-', $slug);
-    $slug = preg_replace('/-+/', '-', $slug);
-    $slug = trim($slug, '-');
-
-    // Save Markdown
-    $filepath = "$outputDir/{$slug}.html.md";
+    // Save Markdown (using filepath already computed above)
     file_put_contents($filepath, $markdown);
     logMessage("Saved: {$slug}.html.md");
 
