@@ -2,6 +2,8 @@
 /**
  * php-llmscan – LLM Documentation Generator for llmstxt.org compliance
  *
+ * Version 0.0.3
+ * 
  * Parses a website’s sitemap and uses AI to:
  *   1. Identify pages that contain technical documentation (not marketing, legal, or blog content)
  *   2. Convert them into clean, neutral Markdown (.html.md) files
@@ -112,18 +114,30 @@ foreach ($urls as $url) {
     
         if ($fileAge < $maxAgeSeconds) {
             if ($techFileExists) {
-                logMessage("Skipping (fresh technical file): {$slug}.html.md (age: " . round($fileAge / 3600, 1) . "h)");
-                $pageMetadata[$slug] = 'Technical documentation page (cached).';
-            } else {
+    $metaFile = "$outputDir/{$slug}.meta.json";
+    $realDesc = 'Technical documentation page.'; // fallback
+
+        if (file_exists($metaFile)) {
+            $meta = json_decode(file_get_contents($metaFile), true);
+            if (isset($meta['desc'])) {
+                $realDesc = $meta['desc'];
+            }
+        }
+    
+        logMessage("Skipping (fresh technical file): {$slug}.html.md (age: " . round($fileAge / 3600, 1) . "h)");
+        $pageMetadata[$slug] = $realDesc;
+        } else {
                 logMessage("Skipping (recently marked non-technical): {$slug}.not_technical.html.md (age: " . round($fileAge / 3600, 1) . "h)");
                 // Do NOT add to $pageMetadata — it's not documentation
             }
             continue;
         } else {
             logMessage("Cached decision outdated (age: " . round($fileAge / 86400, 1) . "d), re-evaluating: $url");
-            // Optional: clean up old marker files (not required)
+            //clean up old marker files (not required)
             if ($techFileExists) unlink($filepath);
             if ($notTechFileExists) unlink($notTechFile);
+            $metaFile = "$outputDir/{$slug}.meta.json";
+            if (file_exists($metaFile)) unlink($metaFile);
         }
     }
 
@@ -222,11 +236,20 @@ PROMPT;
     $description = callAI($config['ai_engine'], $apiKey, $descPrompt, 60, 0.3);
     $description = trim(preg_replace('/[\r\n].*/', '', $description)); // first sentence only
 
-    // Save Markdown (using filepath already computed above)
+    // Save Markdown
     file_put_contents($filepath, $markdown);
     logMessage("Saved: {$slug}.html.md");
 
+    // Save metadata (description + timestamp) for future caching
+    $metaFile = "$outputDir/{$slug}.meta.json";
+    file_put_contents($metaFile, json_encode([
+        'desc' => $description ?: 'Technical documentation page.',
+        'url'  => $url,
+        'generated_at' => time()
+    ], JSON_UNESCAPED_SLASHES));
+
     $pageMetadata[$slug] = $description ?: 'Technical documentation page.';
+
 }
 
 // === Generate llms.txt ===
